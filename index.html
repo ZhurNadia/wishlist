@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Бажанка — Wishlist</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎁</text></svg>">
+<style>
+:root{--bg:#faf7ff;--card:#fff;--ink:#241b3a;--mut:#7a7092;--line:#ece6f7;--ac:#7c3aed;--ac2:#ec4899;--ok:#16a34a;--chip:#f3edff}
+@media (prefers-color-scheme:dark){:root{--bg:#15111f;--card:#1f1930;--ink:#f3eefc;--mut:#a79bc4;--line:#322a4a;--ac:#a78bfa;--ac2:#f472b6;--chip:#2a2142}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+.hero{position:relative;padding:44px 20px 56px;text-align:center;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff}
+.hero h1{margin:0 0 8px;font-size:clamp(28px,6vw,46px);letter-spacing:-.02em;cursor:pointer}
+.hero p{margin:0 auto;max-width:560px;opacity:.92}
+.lang{position:absolute;top:12px;right:12px;display:flex;background:rgba(255,255,255,.2);border-radius:99px;padding:3px}
+.lang button{background:transparent;color:#fff;padding:4px 12px;font-size:14px;border-radius:99px}
+.lang button.on{background:#fff;color:#7c3aed}
+.wrap{max-width:820px;margin:-28px auto 60px;padding:0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 8px 30px rgba(124,58,237,.08);margin-bottom:16px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+input:focus,select:focus{outline:2px solid var(--ac);outline-offset:1px}
+button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:10px 16px;background:var(--ac);color:#fff;font-weight:600}
+button:disabled{opacity:.5}
+button.ghost{background:var(--chip);color:var(--ac)}
+button.sm{padding:6px 10px;font-size:14px}
+.grow{flex:1 1 180px}
+.title{font-size:22px;font-weight:700;border:0;background:transparent;padding:0;width:100%}
+.group{border:2px dashed transparent;border-radius:18px;padding:8px;margin:0 -8px 8px}
+.group.over{border-color:var(--ac);background:var(--chip)}
+.ghead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.ghead input{font-weight:700;font-size:17px;background:transparent;border:0;padding:4px 0;flex:1}
+.item{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px;margin-bottom:8px}
+.item.drag{opacity:.4}
+.item.res{background:var(--chip)}
+.item.res .thumb,.item.res .nm,.item.res .price,.item.res .chips{opacity:.5}
+.item.res .nm{text-decoration:line-through}
+.handle{cursor:grab;color:var(--mut);user-select:none}
+.thumb{width:56px;height:56px;border-radius:12px;flex:none;display:grid;place-items:center;font-size:24px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--ac),var(--ac2));overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;background:#fff}
+.body{flex:1;min-width:0}
+.nm{font-weight:600;overflow-wrap:anywhere}
+.price{color:var(--mut);font-size:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.chip{background:var(--chip);color:var(--ac);text-decoration:none;font-size:13px;font-weight:600;padding:3px 10px;border-radius:99px;border:0;cursor:pointer}
+.chip:hover{background:var(--ac);color:#fff}
+.badge{color:var(--ok);font-weight:700;font-size:14px;white-space:nowrap}
+.empty,.note{color:var(--mut);font-size:14px}.empty{text-align:center;padding:14px}
+.note{margin-top:8px}
+.bar{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.x{background:none;color:var(--mut);padding:4px 8px}
+.link{word-break:break-all;background:var(--chip);padding:8px 10px;border-radius:10px;font-size:13px;margin:4px 0}
+.err{color:#dc2626}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="lang"><button id="l-uk">УКР</button><button id="l-en">ENG</button></div>
+  <h1 id="logo">🎁 Бажанка</h1><p id="hp"></p>
+</header>
+<main class="wrap" id="main"></main>
+
+<script>
+/* ===== SETTINGS / НАЛАШТУВАННЯ: paste your values from Supabase / вставте свої значення ===== */
+const SUPABASE_URL = "NEXT_PUBLIC_SUPABASE_URL=https://zeczwmkqqxgacixrwkhi.supabase.co";
+const SUPABASE_KEY = "sb_publishable_YjwhGDEyXKP0ti3ZEnyT1A_zVVCn2tl";
+/* ============================================================================================ */
+
+const T={
+uk:{
+ hero:"Створіть віш-ліст, поділіться посиланням і паролем — друзі зарезервують подарунок, а ви уникнете дублів.",
+ newList:"Новий віш-ліст",titlePh:"Назва, напр. День народження",passOpt:"Пароль (необов'язково)",create:"Створити",
+ myLists:"Мої списки",defList:"Список",defTitle:"Мій віш-ліст",firstGroup:"Мої бажання",
+ errCreate:"Помилка: перевірте налаштування Supabase. ",loading:"Завантаження…",notFound:"Список не знайдено 🤷",
+ locked:"🔒 Цей віш-ліст захищений",passPh:"Пароль",open:"Відкрити",wrong:"Невірний пароль",connErr:"Помилка зʼєднання: ",
+ shareNote:"Посилання для друзів (надішліть разом із паролем):",copy:"🔗 Копіювати",copied:"✓ Скопійовано",
+ newPassPh:"Новий пароль (порожньо — без паролю)",changePass:"Змінити пароль",saved:"✓ Збережено",
+ ownerNote:"⚠️ Ця сторінка — ваше посилання для редагування. Не діліться нею, а друзям надсилайте посилання зверху. Зарезервовані позиції викреслені й позначені ✓.",
+ inPh:"Назва товару або вставте посилання на товар",add:"+ Додати",
+ addNote:"З посилання на товар підтягнуться фото й назва. З назви — посилання для пошуку в Amazon, bol.com, Coolblue.",
+ groupPh:"Нова група, напр. До 20 €",addGroup:"+ Група",emptyOwner:"Перетягніть сюди позицію або додайте нову",emptyGuest:"Порожньо",
+ reserve:"Зарезервувати",reserved:"✓ Зарезервовано",cancel:"Скасувати",delGroup:"Видалити групу з усіма позиціями?",
+ addLink:"+ посилання",linkPrompt:"Посилання на товар у магазині:",pricePrompt:"Ціна в цьому магазині, € (можна пропустити):",
+ setupTitle:"Потрібне налаштування",setupText:"Відкрийте index.html і вставте SUPABASE_URL та SUPABASE_KEY на початку скрипта."},
+en:{
+ hero:"Create a wishlist, share the link and password — friends reserve a gift, and you avoid duplicates.",
+ newList:"New wishlist",titlePh:"Name, e.g. Birthday",passOpt:"Password (optional)",create:"Create",
+ myLists:"My lists",defList:"List",defTitle:"My wishlist",firstGroup:"My wishes",
+ errCreate:"Error: check your Supabase settings. ",loading:"Loading…",notFound:"List not found 🤷",
+ locked:"🔒 This wishlist is protected",passPh:"Password",open:"Open",wrong:"Wrong password",connErr:"Connection error: ",
+ shareNote:"Link for friends (send it together with the password):",copy:"🔗 Copy",copied:"✓ Copied",
+ newPassPh:"New password (empty = no password)",changePass:"Change password",saved:"✓ Saved",
+ ownerNote:"⚠️ This page is your editing link. Don't share it — send friends the link above. Reserved items are crossed out and marked ✓.",
+ inPh:"Product name or paste a product link",add:"+ Add",
+ addNote:"A product link fetches the photo and title. A name creates search links for Amazon, bol.com, Coolblue.",
+ groupPh:"New group, e.g. Under €20",addGroup:"+ Group",emptyOwner:"Drag an item here or add a new one",emptyGuest:"Empty",
+ reserve:"Reserve",reserved:"✓ Reserved",cancel:"Cancel",delGroup:"Delete the group with all its items?",
+ addLink:"+ link",linkPrompt:"Product link in the shop:",pricePrompt:"Price in this shop, € (optional):",
+ setupTitle:"Setup needed",setupText:"Open index.html and paste SUPABASE_URL and SUPABASE_KEY at the top of the script."}
+};
+let LANG=localStorage.getItem("lang")||((navigator.language||"").startsWith("uk")?"uk":"en");
+const t=k=>T[LANG][k];
+
+const SHOPS=[["Amazon",q=>"https://www.amazon.nl/s?k="+q],["bol.com",q=>"https://www.bol.com/nl/nl/s/?searchtext="+q],["Coolblue",q=>"https://www.coolblue.nl/zoeken?query="+q],["MediaMarkt",q=>"https://www.mediamarkt.nl/nl/search.html?query="+q]];
+const $=id=>document.getElementById(id), main=$("main");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const rnd=n=>{const a=new Uint8Array(n);crypto.getRandomValues(a);return [...a].map(x=>"abcdefghjkmnpqrstuvwxyz23456789"[x%31]).join("");};
+const sha=async s=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,"0")).join("");
+async function rpc(fn,args){
+  const r=await fetch(SUPABASE_URL+"/rest/v1/rpc/"+fn,{method:"POST",headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY,"Content-Type":"application/json"},body:JSON.stringify(args)});
+  if(!r.ok)throw new Error(await r.text());
+  const t=await r.text();return t?JSON.parse(t):null;
+}
+const params=()=>Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+const mine=()=>{try{return JSON.parse(localStorage.getItem("mylists")||"[]")}catch(e){return[]}};
+
+let S=null,ID,EDIT,PASS=null,RES={},isOwner=false,dragId=null,timer=null,poll=null;
+
+function applyStatic(){
+  document.documentElement.lang=LANG;$("hp").textContent=t("hero");
+  $("l-uk").className=LANG==="uk"?"on":"";$("l-en").className=LANG==="en"?"on":"";
+}
+function setLang(l){LANG=l;localStorage.setItem("lang",l);applyStatic();rerender();}
+$("l-uk").onclick=()=>setLang("uk");$("l-en").onclick=()=>setLang("en");
+function rerender(){
+  if(SUPABASE_URL.includes("YOUR-PROJECT"))return setup();
+  if(!params().l)return home();
+  if(S)render();else open();
+}
+
+/* ---------- Home ---------- */
+function home(){
+  clearInterval(poll);S=null;
+  const ml=mine();
+  main.innerHTML=`<div class="card"><h3 style="margin-top:0">${t("newList")}</h3>
+   <div class="row"><input id="t" class="grow" placeholder="${esc(t("titlePh"))}"><input id="p" placeholder="${esc(t("passOpt"))}" style="width:200px"><button id="go">${t("create")}</button></div>
+   <div id="e" class="note err"></div></div>
+   ${ml.length?`<div class="card"><b>${t("myLists")}</b>${ml.map(l=>`<div class="row" style="margin-top:8px"><a class="chip" href="#l=${l.id}&e=${l.e}">${esc(l.t||t("defList"))}</a></div>`).join("")}</div>`:""}`;
+  $("go").onclick=async()=>{
+    $("go").disabled=true;
+    try{
+      const id=rnd(10),e=rnd(24),p=$("p").value.trim();
+      const data={title:$("t").value.trim()||t("defTitle"),groups:[{id:rnd(6),name:t("firstGroup"),items:[]}]};
+      await rpc("create_list",{p_id:id,p_edit:e,p_pass:p?await sha(p+id):null,p_data:data});
+      localStorage.setItem("mylists",JSON.stringify([...mine(),{id,e,t:data.title}]));
+      location.hash=`l=${id}&e=${e}`;
+    }catch(x){$("e").textContent=t("errCreate")+x.message;$("go").disabled=false;}
+  };
+}
+function setup(){main.innerHTML=`<div class="card"><b>${t("setupTitle")}</b><p>${t("setupText")}</p></div>`;}
+
+/* ---------- List ---------- */
+async function route(){
+  clearTimeout(timer);clearInterval(poll);S=null;
+  const q=params();
+  if(!q.l)return home();
+  ID=q.l;EDIT=q.e||null;
+  PASS=sessionStorage.getItem("pw_"+ID);
+  await open();
+}
+async function open(){
+  main.innerHTML=`<div class="card empty">${t("loading")}</div>`;
+  let r;
+  try{r=await rpc("get_list",{p_id:ID,p_pass:PASS,p_edit:EDIT});}catch(x){main.innerHTML=`<div class="card err">${t("connErr")}${esc(x.message)}</div>`;return;}
+  if(!r){main.innerHTML=`<div class="card empty">${t("notFound")}</div>`;return;}
+  if(r.locked){
+    main.innerHTML=`<div class="card" style="max-width:380px;margin:0 auto;text-align:center"><h3>${t("locked")}</h3><div class="row"><input id="pw" type="password" class="grow" placeholder="${esc(t("passPh"))}"><button id="un">${t("open")}</button></div><div id="pe" class="note err"></div></div>`;
+    const go=async()=>{const h=await sha($("pw").value+ID);const x=await rpc("get_list",{p_id:ID,p_pass:h,p_edit:null});
+      if(x&&!x.locked){PASS=h;sessionStorage.setItem("pw_"+ID,h);open();}else $("pe").textContent=t("wrong");};
+    $("un").onclick=go;$("pw").onkeydown=e=>{if(e.key==="Enter")go();};return;
+  }
+  S=r.data;RES=r.reserved||{};isOwner=!!r.owner;
+  render();
+  poll=setInterval(refresh,15000);
+}
+async function refresh(){
+  try{
+    const r=await rpc("get_list",{p_id:ID,p_pass:PASS,p_edit:isOwner?EDIT:null});
+    if(!r||r.locked)return;
+    const nr=r.reserved||{};
+    const changed=JSON.stringify(nr)!==JSON.stringify(RES)||(!isOwner&&JSON.stringify(r.data)!==JSON.stringify(S));
+    if(!changed)return;
+    RES=nr;if(!isOwner)S=r.data;
+    const a=document.activeElement;
+    if(!a||a.tagName!=="INPUT")render();
+  }catch(e){}
+}
+function save(){
+  if(!isOwner)return;clearTimeout(timer);
+  timer=setTimeout(()=>rpc("save_list",{p_id:ID,p_edit:EDIT,p_data:S}).catch(()=>{}),500);
+}
+const find=id=>{for(const g of S.groups){const i=g.items.findIndex(x=>x.id===id);if(i>-1)return{g,i,it:g.items[i]};}};
+
+function render(){
+  const share=location.origin+location.pathname+"#l="+ID;
+  main.innerHTML=`
+  <div class="card">
+    <input id="lt" class="title" value="${esc(S.title)}" ${isOwner?"":"readonly"}>
+    ${isOwner?`<div class="note">${t("shareNote")}</div><div class="link">${esc(share)}</div>
+     <div class="row"><button class="ghost sm" id="cp">${t("copy")}</button>
+     <input id="np" placeholder="${esc(t("newPassPh"))}" class="grow" style="max-width:300px"><button class="ghost sm" id="sp">${t("changePass")}</button></div>
+     <div class="note">${t("ownerNote")}</div>`:""}
+  </div>
+  ${isOwner?`<div class="card"><div class="row">
+    <input id="in" class="grow" placeholder="${esc(t("inPh"))}">
+    <input id="ip" type="number" min="0" placeholder="≈ €" style="width:90px">
+    <select id="ig">${S.groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join("")}</select>
+    <button id="add">${t("add")}</button></div>
+    <div class="note">${t("addNote")}</div></div>`:""}
+  ${S.groups.map(g=>`<div class="card group" data-g="${g.id}"><div class="ghead"><input value="${esc(g.name)}" data-rn="${g.id}" ${isOwner?"":"readonly"}>${isOwner?`<button class="x" data-dg="${g.id}">🗑</button>`:""}</div>
+    ${g.items.length?g.items.map(itemHTML).join(""):`<div class="empty">${isOwner?t("emptyOwner"):t("emptyGuest")}</div>`}</div>`).join("")}
+  ${isOwner?`<div class="row"><input id="gn" placeholder="${esc(t("groupPh"))}"><button class="ghost" id="ag">${t("addGroup")}</button></div>`:""}`;
+  bind();
+}
+function itemHTML(it){
+  const r=!!RES[it.id];
+  const action=isOwner?`${r?`<span class="badge">${t("reserved")}</span>`:""}<button class="x" data-di="${it.id}">✕</button>`
+    :(r?`<span class="badge">${t("reserved")}</span><button class="ghost sm" data-res="${it.id}">${t("cancel")}</button>`:`<button class="sm" data-res="${it.id}">${t("reserve")}</button>`);
+  return `<div class="item ${r?"res":""}" data-i="${it.id}" ${isOwner?'draggable="true"':""}>
+   ${isOwner?'<span class="handle">⋮⋮</span>':""}
+   <div class="thumb">${it.img?`<img src="${esc(it.img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:""}${esc((it.name||"?")[0].toUpperCase())}</div>
+   <div class="body"><div class="nm">${esc(it.name)}</div>${it.price?`<div class="price">≈ €${esc(it.price)}</div>`:""}
+    <div class="chips">${it.shops.map(s=>`<a class="chip" href="${esc(s.u)}" target="_blank" rel="noopener noreferrer">${esc(s.n)}${s.p?" · €"+esc(s.p):""}</a>`).join("")}${isOwner?`<button class="chip" data-ls="${it.id}">${t("addLink")}</button>`:""}</div></div>
+   ${action}</div>`;
+}
+function bind(){
+  document.querySelectorAll("[data-res]").forEach(b=>b.onclick=async()=>{const id=b.dataset.res,v=!RES[id];if(v)RES[id]=true;else delete RES[id];render();
+    try{await rpc("reserve",{p_id:ID,p_pass:PASS,p_item:id,p_val:v});}catch(e){refresh();}});
+  if(!isOwner)return;
+  $("lt").onchange=e=>{S.title=e.target.value;save();};
+  $("cp").onclick=async()=>{try{await navigator.clipboard.writeText(location.origin+location.pathname+"#l="+ID);$("cp").textContent=t("copied");}catch(e){}};
+  $("sp").onclick=async()=>{const p=$("np").value.trim();await rpc("save_list",{p_id:ID,p_edit:EDIT,p_data:S,p_set_pass:true,p_pass:p?await sha(p+ID):null});$("sp").textContent=t("saved");};
+  $("add").onclick=addItem;$("in").onkeydown=e=>{if(e.key==="Enter")addItem();};
+  $("ag").onclick=()=>{const n=$("gn").value.trim();if(!n)return;S.groups.push({id:rnd(6),name:n,items:[]});save();render();};
+  document.querySelectorAll("[data-di]").forEach(b=>b.onclick=()=>{const f=find(b.dataset.di);f.g.items.splice(f.i,1);save();render();});
+  document.querySelectorAll("[data-dg]").forEach(b=>b.onclick=()=>{if(S.groups.length>1&&confirm(t("delGroup"))){S.groups=S.groups.filter(g=>g.id!==b.dataset.dg);save();render();}});
+  document.querySelectorAll("[data-rn]").forEach(i=>i.onchange=()=>{S.groups.find(g=>g.id===i.dataset.rn).name=i.value;save();render();});
+  document.querySelectorAll("[data-ls]").forEach(b=>b.onclick=()=>{
+    const u=prompt(t("linkPrompt"));if(!u||!/^https?:\/\//.test(u))return;
+    const p=prompt(t("pricePrompt"))||"";
+    let n;try{n=new URL(u).hostname.replace(/^www\./,"");}catch(e){return;}
+    find(b.dataset.ls).it.shops.push({n,u,p});save();render();});
+  document.querySelectorAll(".item").forEach(el=>{
+    el.ondragstart=e=>{dragId=el.dataset.i;el.classList.add("drag");try{e.dataTransfer.setData("text/plain",dragId)}catch(_){}};
+    el.ondragend=()=>{el.classList.remove("drag");document.querySelectorAll(".over").forEach(x=>x.classList.remove("over"));};
+    el.ondragover=e=>e.preventDefault();
+    el.ondrop=e=>{e.preventDefault();e.stopPropagation();moveTo(el.closest(".group").dataset.g,el.dataset.i);};
+  });
+  document.querySelectorAll(".group").forEach(gr=>{
+    gr.ondragover=e=>{e.preventDefault();gr.classList.add("over");};
+    gr.ondragleave=()=>gr.classList.remove("over");
+    gr.ondrop=e=>{e.preventDefault();moveTo(gr.dataset.g,null);};
+  });
+}
+function moveTo(gid,before){
+  if(!dragId||dragId===before)return;const f=find(dragId);if(!f)return;
+  f.g.items.splice(f.i,1);const tg=S.groups.find(g=>g.id===gid);
+  let i=before?tg.items.findIndex(x=>x.id===before):tg.items.length;if(i<0)i=tg.items.length;
+  tg.items.splice(i,0,f.it);dragId=null;save();render();
+}
+async function addItem(){
+  const raw=$("in").value.trim();if(!raw)return;
+  const btn=$("add");btn.disabled=true;btn.textContent="…";
+  const it={id:rnd(8),name:raw,price:$("ip").value,img:"",shops:[]};
+  if(/^https?:\/\//.test(raw)){
+    try{
+      const u=new URL(raw);
+      it.shops.push({n:u.hostname.replace(/^www\./,""),u:raw,p:""});
+      const r=await fetch("https://api.microlink.io/?url="+encodeURIComponent(raw)).then(r=>r.json());
+      it.name=(r.data&&r.data.title||u.hostname).slice(0,120);
+      it.img=(r.data&&r.data.image&&r.data.image.url)||"";
+    }catch(e){it.name=raw;}
+  }
+  const q=encodeURIComponent(it.name.slice(0,80));
+  for(const [n,f] of SHOPS)if(!it.shops.some(s=>s.n.toLowerCase().includes(n.toLowerCase().split(".")[0])))it.shops.push({n,u:f(q),p:""});
+  S.groups.find(g=>g.id===$("ig").value).items.push(it);save();render();
+}
+$("logo").onclick=()=>{location.hash="";};
+addEventListener("hashchange",route);
+applyStatic();
+if(SUPABASE_URL.includes("YOUR-PROJECT"))setup();else route();
+</script>
+</body>
+</html>
