@@ -10,13 +10,13 @@
 @media (prefers-color-scheme:dark){:root{--bg:#15111f;--card:#1f1930;--ink:#f3eefc;--mut:#a79bc4;--line:#322a4a;--ac:#a78bfa;--ac2:#f472b6;--chip:#2a2142}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
-.hero{position:relative;padding:44px 20px 56px;text-align:center;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff}
+.hero{position:relative;padding:56px 20px 36px;text-align:center;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff}
 .hero h1{margin:0 0 8px;font-size:clamp(28px,6vw,46px);letter-spacing:-.02em;cursor:pointer}
 .hero p{margin:0 auto;max-width:560px;opacity:.92}
 .lang{position:absolute;top:12px;right:12px;display:flex;background:rgba(255,255,255,.2);border-radius:99px;padding:3px}
 .lang button{background:transparent;color:#fff;padding:4px 12px;font-size:14px;border-radius:99px}
 .lang button.on{background:#fff;color:#7c3aed}
-.wrap{max-width:820px;margin:-28px auto 60px;padding:0 16px}
+.wrap{max-width:820px;margin:28px auto 60px;padding:0 16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 8px 30px rgba(124,58,237,.08);margin-bottom:16px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
@@ -52,6 +52,10 @@ button.sm{padding:6px 10px;font-size:14px}
 .x{background:none;color:var(--mut);padding:4px 8px}
 .link{word-break:break-all;background:var(--chip);padding:8px 10px;border-radius:10px;font-size:13px;margin:4px 0}
 .err{color:#dc2626}
+.chip.auto{opacity:.6;font-weight:500}
+.cw{display:inline-flex;align-items:center}
+.cx{background:none;border:0;color:var(--mut);cursor:pointer;padding:0 4px;font-size:11px;border-radius:0}
+.thumb.ed{cursor:pointer}
 </style>
 </head>
 <body>
@@ -60,6 +64,7 @@ button.sm{padding:6px 10px;font-size:14px}
   <h1 id="logo">🎁 Бажанка</h1><p id="hp"></p>
 </header>
 <main class="wrap" id="main"></main>
+<input type="file" id="file" accept="image/*" style="display:none">
 
 <script>
 /* ===== SETTINGS / НАЛАШТУВАННЯ: paste your values from Supabase / вставте свої значення ===== */
@@ -81,7 +86,7 @@ uk:{
  addNote:"З посилання на товар підтягнуться фото й назва. З назви — посилання для пошуку в Amazon, bol.com, Coolblue.",
  groupPh:"Нова група, напр. До 20 €",addGroup:"+ Група",emptyOwner:"Перетягніть сюди позицію або додайте нову",emptyGuest:"Порожньо",
  reserve:"Зарезервувати",reserved:"✓ Зарезервовано",cancel:"Скасувати",delGroup:"Видалити групу з усіма позиціями?",
- addLink:"+ посилання",linkPrompt:"Посилання на товар у магазині:",pricePrompt:"Ціна в цьому магазині, € (можна пропустити):",
+ addLink:"+ посилання",photo:"📷 фото",imgUrl:"🖼 URL фото",imgPrompt:"Посилання на картинку (https://…):",rmChip:"Прибрати",linkPrompt:"Посилання на товар у магазині:",pricePrompt:"Ціна в цьому магазині, € (можна пропустити):",
  setupTitle:"Потрібне налаштування",setupText:"Відкрийте index.html і вставте SUPABASE_URL та SUPABASE_KEY на початку скрипта."},
 en:{
  hero:"Create a wishlist, share the link and password — friends reserve a gift, and you avoid duplicates.",
@@ -96,7 +101,7 @@ en:{
  addNote:"A product link fetches the photo and title. A name creates search links for Amazon, bol.com, Coolblue.",
  groupPh:"New group, e.g. Under €20",addGroup:"+ Group",emptyOwner:"Drag an item here or add a new one",emptyGuest:"Empty",
  reserve:"Reserve",reserved:"✓ Reserved",cancel:"Cancel",delGroup:"Delete the group with all its items?",
- addLink:"+ link",linkPrompt:"Product link in the shop:",pricePrompt:"Price in this shop, € (optional):",
+ addLink:"+ link",photo:"📷 photo",imgUrl:"🖼 photo URL",imgPrompt:"Image link (https://…):",rmChip:"Remove",linkPrompt:"Product link in the shop:",pricePrompt:"Price in this shop, € (optional):",
  setupTitle:"Setup needed",setupText:"Open index.html and paste SUPABASE_URL and SUPABASE_KEY at the top of the script."}
 };
 let LANG=localStorage.getItem("lang")||((navigator.language||"").startsWith("uk")?"uk":"en");
@@ -115,7 +120,7 @@ async function rpc(fn,args){
 const params=()=>Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
 const mine=()=>{try{return JSON.parse(localStorage.getItem("mylists")||"[]")}catch(e){return[]}};
 
-let S=null,ID,EDIT,PASS=null,RES={},isOwner=false,dragId=null,timer=null,poll=null;
+let imgFor=null,S=null,ID,EDIT,PASS=null,RES={},isOwner=false,dragId=null,timer=null,poll=null;
 
 function applyStatic(){
   document.documentElement.lang=LANG;$("hp").textContent=t("hero");
@@ -213,21 +218,32 @@ function render(){
   ${isOwner?`<div class="row"><input id="gn" placeholder="${esc(t("groupPh"))}"><button class="ghost" id="ag">${t("addGroup")}</button></div>`:""}`;
   bind();
 }
+function chipsHTML(it){
+  const brand=s=>s.n.toLowerCase().split(".")[0];
+  const isAuto=s=>s.auto||/amazon\.nl\/s\?|bol\.com\/nl\/nl\/s\/|coolblue\.nl\/zoeken|mediamarkt\.nl\/nl\/search/.test(s.u);
+  const all=it.shops.map((s,i)=>({s,i,a:!!isAuto(s)}));
+  const man=all.filter(x=>!x.a),brands=new Set(man.map(x=>brand(x.s)));
+  const auto=all.filter(x=>x.a&&!brands.has(brand(x.s)));
+  return [...man,...auto].map(({s,i,a})=>`<span class="cw"><a class="chip ${a?"auto":""}" href="${esc(s.u)}" target="_blank" rel="noopener noreferrer">${a?"🔍 ":""}${esc(s.n)}${s.p?" · €"+esc(s.p):""}</a>${isOwner?`<button class="cx" data-rs="${it.id}|${i}" title="${esc(t("rmChip"))}">✕</button>`:""}</span>`).join("");
+}
 function itemHTML(it){
   const r=!!RES[it.id];
   const action=isOwner?`${r?`<span class="badge">${t("reserved")}</span>`:""}<button class="x" data-di="${it.id}">✕</button>`
     :(r?`<span class="badge">${t("reserved")}</span><button class="ghost sm" data-res="${it.id}">${t("cancel")}</button>`:`<button class="sm" data-res="${it.id}">${t("reserve")}</button>`);
   return `<div class="item ${r?"res":""}" data-i="${it.id}" ${isOwner?'draggable="true"':""}>
    ${isOwner?'<span class="handle">⋮⋮</span>':""}
-   <div class="thumb">${it.img?`<img src="${esc(it.img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:""}${esc((it.name||"?")[0].toUpperCase())}</div>
+   <div class="thumb ${isOwner?"ed":""}" ${isOwner?`data-th="${it.id}" title="${esc(t("photo"))}"`:""}>${it.img?`<img src="${esc(it.img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:""}${esc((it.name||"?")[0].toUpperCase())}</div>
    <div class="body"><div class="nm">${esc(it.name)}</div>${it.price?`<div class="price">≈ €${esc(it.price)}</div>`:""}
-    <div class="chips">${it.shops.map(s=>`<a class="chip" href="${esc(s.u)}" target="_blank" rel="noopener noreferrer">${esc(s.n)}${s.p?" · €"+esc(s.p):""}</a>`).join("")}${isOwner?`<button class="chip" data-ls="${it.id}">${t("addLink")}</button>`:""}</div></div>
+    <div class="chips">${chipsHTML(it)}${isOwner?`<button class="chip" data-ls="${it.id}">${t("addLink")}</button><button class="chip" data-th="${it.id}">${t("photo")}</button><button class="chip" data-pu="${it.id}">${t("imgUrl")}</button>`:""}</div></div>
    ${action}</div>`;
 }
 function bind(){
   document.querySelectorAll("[data-res]").forEach(b=>b.onclick=async()=>{const id=b.dataset.res,v=!RES[id];if(v)RES[id]=true;else delete RES[id];render();
     try{await rpc("reserve",{p_id:ID,p_pass:PASS,p_item:id,p_val:v});}catch(e){refresh();}});
   if(!isOwner)return;
+  document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{const [id,i]=b.dataset.rs.split("|");find(id).it.shops.splice(+i,1);save();render();});
+  document.querySelectorAll("[data-pu]").forEach(b=>b.onclick=()=>{const u=prompt(t("imgPrompt"));if(!u||!/^https?:\/\//.test(u))return;find(b.dataset.pu).it.img=u.trim();save();render();});
+  document.querySelectorAll("[data-th]").forEach(el=>el.onclick=()=>{imgFor=el.dataset.th;$("file").click();});
   $("lt").onchange=e=>{S.title=e.target.value;save();};
   $("cp").onclick=async()=>{try{await navigator.clipboard.writeText(location.origin+location.pathname+"#l="+ID);$("cp").textContent=t("copied");}catch(e){}};
   $("sp").onclick=async()=>{const p=$("np").value.trim();await rpc("save_list",{p_id:ID,p_edit:EDIT,p_data:S,p_set_pass:true,p_pass:p?await sha(p+ID):null});$("sp").textContent=t("saved");};
@@ -259,23 +275,48 @@ function moveTo(gid,before){
   let i=before?tg.items.findIndex(x=>x.id===before):tg.items.length;if(i<0)i=tg.items.length;
   tg.items.splice(i,0,f.it);dragId=null;save();render();
 }
+async function fetchPage(url){
+  let title="";
+  try{
+    const r=await fetch("https://api.microlink.io/?url="+encodeURIComponent(url)).then(r=>r.json());
+    const d=r.data||{};title=d.title||"";
+    if(d.image&&d.image.url)return{title,img:d.image.url};
+  }catch(e){}
+  try{
+    const h=await fetch("https://api.allorigins.win/raw?url="+encodeURIComponent(url)).then(r=>r.text());
+    const doc=new DOMParser().parseFromString(h,"text/html");
+    const m=n=>{const e=doc.querySelector('meta[property="'+n+'"],meta[name="'+n+'"]');return e&&e.content};
+    let img=m("og:image")||m("twitter:image")||m("og:image:url")||"";
+    if(img)img=new URL(img,url).href;
+    return{title:m("og:title")||(doc.title||"").trim()||title,img};
+  }catch(e){}
+  return{title,img:""};
+}
 async function addItem(){
   const raw=$("in").value.trim();if(!raw)return;
   const btn=$("add");btn.disabled=true;btn.textContent="…";
   const it={id:rnd(8),name:raw,price:$("ip").value,img:"",shops:[]};
   if(/^https?:\/\//.test(raw)){
-    try{
-      const u=new URL(raw);
+    let u=null;try{u=new URL(raw);}catch(e){}
+    if(u){
       it.shops.push({n:u.hostname.replace(/^www\./,""),u:raw,p:""});
-      const r=await fetch("https://api.microlink.io/?url="+encodeURIComponent(raw)).then(r=>r.json());
-      it.name=(r.data&&r.data.title||u.hostname).slice(0,120);
-      it.img=(r.data&&r.data.image&&r.data.image.url)||"";
-    }catch(e){it.name=raw;}
+      const r=await fetchPage(raw);
+      it.name=(r.title||u.hostname).slice(0,120);it.img=r.img||"";
+    }
   }
   const q=encodeURIComponent(it.name.slice(0,80));
-  for(const [n,f] of SHOPS)if(!it.shops.some(s=>s.n.toLowerCase().includes(n.toLowerCase().split(".")[0])))it.shops.push({n,u:f(q),p:""});
+  for(const [n,f] of SHOPS)it.shops.push({n,u:f(q),p:"",auto:true});
   S.groups.find(g=>g.id===$("ig").value).items.push(it);save();render();
 }
+$("file").onchange=e=>{
+  const f=e.target.files[0];if(!f||!imgFor||!S)return;
+  const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
+    const c=document.createElement("canvas");c.width=c.height=160;const x=c.getContext("2d");
+    const side=Math.min(im.width,im.height);x.fillStyle="#fff";x.fillRect(0,0,160,160);
+    x.drawImage(im,(im.width-side)/2,(im.height-side)/2,side,side,0,0,160,160);
+    const it=find(imgFor);if(it){it.it.img=c.toDataURL("image/jpeg",.8);save();render();}};im.src=r.result;};
+  r.readAsDataURL(f);e.target.value="";
+};
 $("logo").onclick=()=>{location.hash="";};
 addEventListener("hashchange",route);
 applyStatic();
